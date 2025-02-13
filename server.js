@@ -12,7 +12,13 @@ const CHAT_FILE = './data/chat.json';
 // โหลดแชทที่เคยบันทึกไว้
 let chatHistory = [];
 if (fs.existsSync(CHAT_FILE)) {
-    chatHistory = JSON.parse(fs.readFileSync(CHAT_FILE));
+    try {
+        const data = fs.readFileSync(CHAT_FILE, 'utf8');
+        chatHistory = data ? JSON.parse(data) : [];
+    } catch (err) {
+        console.error('โหลดแชทเก่าไม่ได้:', err.message);
+        chatHistory = [];
+    }
 }
 
 // เสิร์ฟไฟล์ static
@@ -46,7 +52,11 @@ io.on('connection', (socket) => {
         }
 
         // บันทึกลงไฟล์
-        fs.writeFileSync(CHAT_FILE, JSON.stringify(chatHistory));
+        try {
+            fs.writeFileSync(CHAT_FILE, JSON.stringify(chatHistory, null, 2));
+        } catch (err) {
+            console.error('บันทึกแชทไม่ได้:', err.message);
+        }
 
         io.emit('chat message', message);
     });
