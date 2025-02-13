@@ -1,22 +1,36 @@
-const socket = io(); // เรียกใช้งาน socket.io
+const socket = io();
+let userName = '';
 
-const form = document.getElementById('form');
-const input = document.getElementById('input');
-const messages = document.getElementById('messages');
+function joinChat() {
+    userName = document.getElementById('nameInput').value.trim();
+    if (userName) {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('chatArea').style.display = 'block';
+    }
+}
 
-// ส่งข้อความเมื่อกดส่ง
-form.addEventListener('submit', (e) => {
+// ส่งข้อความ
+document.getElementById('form').addEventListener('submit', (e) => {
     e.preventDefault();
+    const input = document.getElementById('input');
     if (input.value) {
-        socket.emit('chat message', input.value); // ส่งข้อความไปที่เซิร์ฟเวอร์
+        socket.emit('chat message', { name: userName, text: input.value });
         input.value = '';
     }
 });
 
-// แสดงข้อความที่ได้รับจาก server
+// รับข้อความ
 socket.on('chat message', (msg) => {
     const item = document.createElement('li');
-    item.textContent = msg;
-    messages.appendChild(item);
-    window.scrollTo(0, document.body.scrollHeight);
+    item.innerHTML = `<strong>${msg.name}</strong> [${msg.time}]: ${msg.text}`;
+    document.getElementById('messages').appendChild(item);
+});
+
+// โหลดแชทเก่าเมื่อเข้าเว็บ
+socket.on('chat history', (history) => {
+    history.forEach((msg) => {
+        const item = document.createElement('li');
+        item.innerHTML = `<strong>${msg.name}</strong> [${msg.time}]: ${msg.text}`;
+        document.getElementById('messages').appendChild(item);
+    });
 });

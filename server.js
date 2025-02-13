@@ -1,28 +1,54 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// ให้ Express ใช้ไฟล์ static
-app.use(express.static('public'));
+const CHAT_FILE = './data/chat.json';
 
-// ตั้งค่าการใช้ EJS
+// โหลดแชทที่เคยบันทึกไว้
+let chatHistory = [];
+if (fs.existsSync(CHAT_FILE)) {
+    chatHistory = JSON.parse(fs.readFileSync(CHAT_FILE));
+}
+
+// เสิร์ฟไฟล์ static
+app.use(express.static('public'));
 app.set('view engine', 'ejs');
 
-// เปิดหน้าแรก
 app.get('/', (req, res) => {
     res.render('index');
 });
 
-// เมื่อมีการเชื่อมต่อ Socket
+// จัดการการเชื่อมต่อของ socket.io
 io.on('connection', (socket) => {
-    console.log('มีผู้ใช้งานเชื่อมต่อ: ' + socket.id);
+    console.log('มีผู้ใช้ใหม่เชื่อมต่อ: ' + socket.id);
+    
+    // ส่งแชทเก่าให้ user ใหม่
+    socket.emit('chat history', chatHistory);
 
-    // รับข้อความจากผู้ใช้
-    socket.on('chat message', (msg) => {
-        io.emit('chat message', msg); // ส่งข้อความให้ทุกคน
+    // รับข้อความจาก user
+    socket.on('chat message', (data) => {
+        const message = {
+            name: data.name,
+            text: data.text,
+            time: new Date().toLocaleTimeString()
+        };
+
+        chatHistory.push(message);
+
+        // ถ้ามีมากกว่า 20 แชท ให้ลบของเก่า
+        if (chatHistory.length > 20) {
+            chatHistory.shift();
+        }
+
+        // บันทึกลงไฟล์
+        fs.writeFileSync(CHAT_FILE, JSON.stringify(chatHistory));
+
+        io.emit('chat message', message);
     });
 
     socket.on('disconnect', () => {
@@ -30,7 +56,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// เปิดเซิร์ฟเวอร์
 server.listen(3000, () => {
-    console.log('Server เปิดที่ http://localhost:3000');
+    console.log('เซิร์ฟเวอร์ทำงานที่ http://localhost:3000');
 });
